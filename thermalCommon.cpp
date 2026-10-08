@@ -39,6 +39,7 @@ SPDX-License-Identifier: BSD-3-Clause-Clear */
 #include <dirent.h>
 #include <unordered_map>
 #include <fstream>
+#include <stdexcept>
 
 #include <android-base/logging.h>
 #include "thermalCommon.h"
@@ -267,6 +268,39 @@ int ThermalCommon::initialize_sensor(struct target_therm_cfg& cfg, int sens_idx)
 		sensor.mulFactor = 1;
 	else
 		sensor.mulFactor = 1000;
+
+	/*
+	 * Some downstream kernels expose a state-of-charge thermal zone even
+	 * though its temperature node is not readable. Do not register such a
+	 * zone: publishing its zero-initialized value makes the framework report
+	 * a false SHUTDOWN severity for the individual sensor.
+	 */
+	if (cfg.type == TemperatureType::BCL_PERCENTAGE) {
+		char file_name[MAX_PATH];
+		std::string buf;
+
+		snprintf(file_name, sizeof(file_name), TEMPERATURE_FILE_FORMAT,
+			sensor.tzn);
+		if (readLineFromFile(std::string(file_name), buf) <= 0 ||
+				buf.empty()) {
+			LOG(WARNING) << "Skipping unreadable BCL percentage sensor: "
+				<< cfg.sensor_list[sens_idx] << " TZ:" << sensor.tzn;
+			return -1;
+		}
+
+		try {
+			size_t parsed = 0;
+
+			std::stoi(buf, &parsed, 0);
+			if (parsed != buf.size())
+				throw std::invalid_argument("trailing characters");
+		} catch (const std::exception& err) {
+			LOG(WARNING) << "Skipping invalid BCL percentage sensor: "
+				<< cfg.sensor_list[sens_idx] << " TZ:" << sensor.tzn
+				<< " value:" << buf << " error:" << err.what();
+			return -1;
+		}
+	}
 
 	sensor.sensor_name = cfg.sensor_list[sens_idx];
 	sensor.positiveThresh = cfg.positive_thresh_ramp;
