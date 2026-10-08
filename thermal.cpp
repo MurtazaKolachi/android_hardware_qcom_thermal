@@ -139,10 +139,11 @@ ScopedAStatus Thermal::getTemperaturesWithType(TemperatureType in_type,
 
 	std::vector<Temperature> temperatures;
 
-	if (!utils.isSensorInitialized(in_type))
+	if (!utils.isSensorInitialized())
 		return ndk::ScopedAStatus::fromExceptionCodeWithMessage(EX_ILLEGAL_STATE,
-					"ThermalHAL given sensor type not initialized.");
-	else {
+					"ThermalHAL not initialized properly.");
+
+	if (utils.isSensorInitialized(in_type)) {
 		if (utils.readTemperatures(in_type, temperatures) <= 0)
 			LOG(VERBOSE) << __func__ << "Sensor Temperature read failure.";
 	}
@@ -176,10 +177,11 @@ ScopedAStatus Thermal::getTemperatureThresholdsWithType(
 
 	std::vector<TemperatureThreshold> thresh;
 
-	if (!utils.isSensorInitialized(in_type))
+	if (!utils.isSensorInitialized())
 		return ndk::ScopedAStatus::fromExceptionCodeWithMessage(EX_ILLEGAL_STATE,
-					"ThermalHAL given sensor type not initialized.");
-	else{
+					"ThermalHAL not initialized properly.");
+
+	if (utils.isSensorInitialized(in_type)) {
 		if (utils.readTemperatureThreshold(in_type, thresh) <= 0)
 			LOG(VERBOSE) << __func__ << "Sensor Threshold read failure or type not supported.";
 	}
